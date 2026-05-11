@@ -1,0 +1,16 @@
+obj_dir/
+*.vcd
+*.vpd
+*.wlf
+*.log
+*.jou
+*.zip
+*.tar.gz
+*.tar.xz
+*~
+*.swp
+*.swo
+.DS_Store
+__pycache__/
+*.pyc
+*.pyo

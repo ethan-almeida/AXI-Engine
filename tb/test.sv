@@ -7,7 +7,7 @@ class my_test extends uvm_test;
 
     virtual task run_phase(uvm_phase phase);
         phase.raise_objection(this);
-        `uvm_info("MY_TEST", "hello from verilator + uvm!", UVM_LOW)
+        `uvm_info("MY_TEST", "if you see this, it works!!", UVM_LOW)
         phase.drop_objection(this);
     endtask
 endclass

@@ -17,7 +17,7 @@ TB_DIR="tb"
 
 RTL_SRC=$(find "$RTL_DIR" -name "*.sv" -type f 2>/dev/null || true)
 UVM_SRC=$(find "$TB_DIR" -name "*.sv" -type f 2>/dev/null || true)
-TOP_SRC="tb_top.sv"
+# TOP_SRC="$TB_DIR/tb.sv"
 
 test_name=""
 run_count=0
@@ -68,13 +68,16 @@ build() {
         -Wno-DECLFILENAME \
         -Wno-IMPORTSTAR \
         -Wno-WIDTHTRUNC \
+        -Wno-PROCASSINIT \
+        -Wno-UNDRIVEN \
+        -Wno-UNUSEDSIGNAL \
         --top-module "$TOP_MODULE" \
         +incdir+"$UVM_HOME" \
         +define+UVM_NO_DPI \
         "$UVM_HOME/uvm_pkg.sv" \
         $UVM_SRC \
-        $RTL_SRC \
-        "$TOP_SRC"
+        $RTL_SRC 
+        # "$TOP_SRC"
     echo "Build complete."
 }
 
@@ -106,9 +109,7 @@ if $zip_mode; then
 fi
 
 if [[ -n "$test_name" || "$run_count" -gt 0 ]]; then
-    if [[ ! -f "$BINARY" ]]; then
-        build
-    fi
+    build
 
     if [[ "$run_count" -gt 0 ]]; then
         run_multiple "$run_count"

@@ -58,25 +58,8 @@ logic [3:0] strb_saved;
 
 read_states r_current_state,  r_next_state;
 logic [ADDR_WIDTH-1:0] saved_araddr;
-logic [DATA_WIDTH-1:0] rom [0:7];
 
-integer i;
-initial begin
-    for (i = 0; i < 8; i = i + 1) begin
-        rom[i] = i;
-    end
-end
-
-// GOLDEN RULE
-
-// if (valid && ready) begin
-//     //transfer, data moves
-// end else begin
-//     // no transfer, keep current values
-
-// end
-
-// valid and ready are both independent
+logic [DATA_WIDTH-1:0] mem [0:255];
 
 
 // Write logic for AXI-Lite
@@ -126,17 +109,14 @@ always @ (posedge clk or negedge reset) begin
             end
 
             WRITE: begin
-                if (addr_saved == aw_addr && data_saved[0] == 1'b1) begin
-                    pulse <= 1'b1;
-                end 
-                else begin
-                    pulse <= 1'b0;
-                end
-
+                if (strb_saved[0]) mem[addr_saved[7:0]][0+:8]  <= data_saved[0+:8];
+                if (strb_saved[1]) mem[addr_saved[7:0]][8+:8]  <= data_saved[8+:8];
+                if (strb_saved[2]) mem[addr_saved[7:0]][16+:8] <= data_saved[16+:8];
+                if (strb_saved[3]) mem[addr_saved[7:0]][24+:8] <= data_saved[24+:8];
+                pulse <= (data_saved[0] == 1'b1) ? 1'b1 : 1'b0;
                 b_resp <= 2'b00;
                 b_valid <= 1'b1;
                 w_next_state <= RESP;
-
             end
 
             RESP: begin
@@ -188,23 +168,11 @@ always @ (posedge clk or negedge reset) begin
             end
 
             READ_DATA: begin
-                case (saved_araddr[4:2])
-                    3'd0: r_data <= rom[0];
-                    3'd1: r_data <= rom[1];
-                    3'd2: r_data <= rom[2];
-                    3'd3: r_data <= rom[3];
-                    3'd4: r_data <= rom[4];
-                    3'd5: r_data <= rom[5];
-                    3'd6: r_data <= rom[6];
-                    3'd7: r_data <= rom[7];
-                    default: r_data <= {DATA_WIDTH{1'b0}};
-                endcase
-
+                r_data <= mem[saved_araddr[7:0]];
                 r_resp <= 2'b00;
                 r_valid <= 1'b1;
-
                 r_next_state <= READ_RESP;
-            end    
+            end  
 
             READ_RESP: begin
                 if (r_valid && r_ready) begin
@@ -218,12 +186,7 @@ always @ (posedge clk or negedge reset) begin
                 r_next_state <= INITIAL_READ;
             end
         endcase
-
-
-
     end
-
-
 end
 
 

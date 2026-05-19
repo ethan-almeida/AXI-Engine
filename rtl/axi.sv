@@ -1,13 +1,3 @@
-// main states
-// typedef enum logic [1:0] { 
-//     INITIAL_STATE,
-//     WRITE_ADDR,
-//     WRITE_RESP,
-//     WRITE_DATA,
-//     READ_DATA,
-//     READ_ADDR
-// } states;
-
 // axi-lite write states
 typedef enum logic [2:0] {
     INITIAL_WRITE,
@@ -16,6 +6,14 @@ typedef enum logic [2:0] {
     WRITE,
     RESP
 } write_states;
+
+// axi-lite read states
+typedef enum logic [2:0] {
+    INITIAL_READ,
+    READ_ADDR,
+    READ_DATA,
+    READ_RESP
+} read_states;
 
 module axi_lite_slave #(parameter DATA_WIDTH = 32, ADDR_WIDTH = 32)
 (
@@ -34,7 +32,7 @@ module axi_lite_slave #(parameter DATA_WIDTH = 32, ADDR_WIDTH = 32)
     output logic w_ready,
 
     // write response channel's signals
-    // for b_resp -> 00: OKAY, 10: SLVERR, 11: DECERR, 01: EXOKAY (not supported in AXI-Lite)
+    // for b_resp -> 00: OKAY, 10: SLVERR, 11: DECERR, 01: EXOKAY 
     output logic [1:0] b_resp,
     output logic b_valid,
     input logic b_ready,
@@ -53,11 +51,21 @@ module axi_lite_slave #(parameter DATA_WIDTH = 32, ADDR_WIDTH = 32)
     output reg pulse
 );
  
-write_states current_state, next_state;
+write_states w_current_state, w_next_state;
 logic [ADDR_WIDTH-1:0] addr_saved;
 logic [DATA_WIDTH-1:0] data_saved;
 logic [3:0] strb_saved;
 
+read_states r_current_state,  r_next_state;
+logic [ADDR_WIDTH-1:0] saved_araddr;
+logic [DATA_WIDTH-1:0] rom [0:7];
+
+integer i;
+initial begin
+    for (i = 0; i < 8; i = i + 1) begin
+        rom[i] = i;
+    end
+end
 
 // GOLDEN RULE
 
@@ -74,7 +82,7 @@ logic [3:0] strb_saved;
 // Write logic for AXI-Lite
 always @ (posedge clk or negedge reset) begin
     if (!reset) begin
-        current_state <= INITIAL_WRITE;
+        w_current_state <= INITIAL_WRITE;
         addr_saved <= {ADDR_WIDTH{1'b0}};
         data_saved <= {DATA_WIDTH{1'b0}};
         strb_saved <= 4'b0000;
@@ -85,8 +93,8 @@ always @ (posedge clk or negedge reset) begin
         pulse <= 1'b0;
     end 
     else begin
-        current_state <= next_state;
-        case (current_state)
+        w_current_state <= w_next_state;
+        case (w_current_state)
 
             INITIAL_WRITE: begin
                 aw_ready <= 1'b1;
@@ -96,7 +104,7 @@ always @ (posedge clk or negedge reset) begin
                 addr_saved <= {ADDR_WIDTH{1'b0}};
                 data_saved <= {DATA_WIDTH{1'b0}};
                 strb_saved <= 4'b0000;
-                next_state <= SAVE_ADDR;
+                w_next_state <= SAVE_ADDR;
             end
             
             SAVE_ADDR: begin
@@ -104,7 +112,7 @@ always @ (posedge clk or negedge reset) begin
                     addr_saved <= aw_addr;
                     aw_ready <= 1'b0;
                     w_ready <= 1'b1;
-                    next_state <= SAVE_DATA;
+                    w_next_state <= SAVE_DATA;
                 end
             end
 
@@ -113,7 +121,7 @@ always @ (posedge clk or negedge reset) begin
                     data_saved <= w_data;
                     strb_saved <= w_strb;
                     w_ready <= 1'b0;
-                    next_state <= WRITE;
+                    w_next_state <= WRITE;
                 end
             end
 
@@ -127,7 +135,7 @@ always @ (posedge clk or negedge reset) begin
 
                 b_resp <= 2'b00;
                 b_valid <= 1'b1;
-                next_state <= RESP;
+                w_next_state <= RESP;
 
             end
 
@@ -135,19 +143,88 @@ always @ (posedge clk or negedge reset) begin
                 pulse <= 1'b0; //should only last 1 clk cycle
                 if (b_valid && b_ready) begin
                     b_valid <= 1'b0;
-                    next_state <= INITIAL_WRITE;
+                    w_next_state <= INITIAL_WRITE;
                 end
             end
 
             default: begin
-                next_state <= INITIAL_WRITE;
+                w_next_state <= INITIAL_WRITE;
             end
         endcase
     end
 end
 
 
+always @ (posedge clk or negedge reset) begin
 
+    if (!reset) begin
+        r_current_state <= INITIAL_READ;
+        ar_ready <= 1'b0;
+        r_valid <= 1'b0;
+        r_resp <= 2'b00;
+        r_data <= {DATA_WIDTH{1'b0}};
+        saved_araddr <= {ADDR_WIDTH{1'b0}};
+    end
+
+    else begin
+        r_current_state <= r_next_state;
+        case (r_current_state)
+
+            INITIAL_READ: begin
+                ar_ready <= 1'b1;
+                r_valid <= 1'b0;
+                r_resp <= 2'b00;
+                r_data <= {DATA_WIDTH{1'b0}};
+                saved_araddr <= {ADDR_WIDTH{1'b0}};
+                r_next_state <= READ_ADDR;
+            end
+
+            READ_ADDR: begin
+                if (ar_valid && ar_ready) begin
+                    saved_araddr <= ar_addr;
+                    ar_ready <= 1'b1;
+                    r_next_state <= READ_DATA;
+                end
+            end
+
+            READ_DATA: begin
+                case (saved_araddr[4:2])
+                    3'd0: r_data <= rom[0];
+                    3'd1: r_data <= rom[1];
+                    3'd2: r_data <= rom[2];
+                    3'd3: r_data <= rom[3];
+                    3'd4: r_data <= rom[4];
+                    3'd5: r_data <= rom[5];
+                    3'd6: r_data <= rom[6];
+                    3'd7: r_data <= rom[7];
+                    default: r_data <= {DATA_WIDTH{1'b0}};
+                endcase
+
+                r_resp <= 2'b00;
+                r_valid <= 1'b1;
+
+                r_next_state <= READ_RESP;
+            end    
+
+            READ_RESP: begin
+                if (r_valid && r_ready) begin
+                    r_valid <= 1'b0;
+                    r_resp <= 2'b00;
+                    r_next_state <= INITIAL_READ;
+                end
+            end
+
+            default: begin
+                r_next_state <= INITIAL_READ;
+            end
+        endcase
+
+
+
+    end
+
+
+end
 
 
 

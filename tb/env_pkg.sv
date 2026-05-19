@@ -231,13 +231,13 @@ package environment_pkg;
         endfunction
 
         function void write_r(read_trans t);
-            read_trans exp_trans; 
-            exp_trans = exp_queue.pop_front();
             read_cnt++;
             if (exp_queue.size() == 0) begin
                 `uvm_error("Scoreboard", "no expected data for comparing")
                 return;
-            end 
+            end
+            read_trans exp_trans; 
+            exp_trans = exp_queue.pop_front();
 
             if (t.data == exp_trans.data && t.resp == exp_trans.resp) begin
                 match_cnt++;

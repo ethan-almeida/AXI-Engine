@@ -24,7 +24,7 @@ logic                  ar_ready;
 
 logic reset, pulse;
 
-modport driver (output aw_addr, aw_valid, 
+modport driver (input clk, output aw_addr, aw_valid, 
                 input aw_ready,
                 output w_data, w_strb, w_valid, 
                 input w_ready,
@@ -33,7 +33,7 @@ modport driver (output aw_addr, aw_valid,
                 output reset
                 );
 
-modport monitor (input aw_addr, aw_valid, aw_ready, 
+modport monitor (input clk, aw_addr, aw_valid, aw_ready, 
                  input ar_addr, ar_ready, ar_valid, 
                  input w_data, w_strb, w_valid, w_ready, 
                  input b_resp, b_valid, b_ready, 

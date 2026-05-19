@@ -16,7 +16,17 @@ RTL_DIR="rtl"
 TB_DIR="tb"
 
 RTL_SRC=$(find "$RTL_DIR" -name "*.sv" -type f 2>/dev/null || true)
-UVM_SRC=$(find "$TB_DIR" -name "*.sv" -type f 2>/dev/null || true)
+# UVM_SRC=$(find "$TB_DIR" -name "*.sv" -type f 2>/dev/null || true)
+UVM_SRC=(
+    "$TB_DIR/config_pkg.sv"
+    "$TB_DIR/transactions_pkg.sv"
+    "$TB_DIR/sequencers_pkg.sv"
+    "$TB_DIR/reference_model_pkg.sv"
+    "$TB_DIR/env_pkg.sv"
+    "$TB_DIR/interface.sv"
+    "$TB_DIR/test.sv"
+    "$TB_DIR/tb.sv"
+)
 # TOP_SRC="$TB_DIR/tb.sv"
 
 test_name=""
@@ -75,7 +85,7 @@ build() {
         +incdir+"$UVM_HOME" \
         +define+UVM_NO_DPI \
         "$UVM_HOME/uvm_pkg.sv" \
-        $UVM_SRC \
+        "${UVM_SRC[@]}" \
         $RTL_SRC 
         # "$TOP_SRC"
     echo "Build complete."

@@ -30,6 +30,9 @@ modport driver (input clk, output aw_addr, aw_valid,
                 input w_ready,
                 input b_resp, b_valid, 
                 output b_ready,
+                output ar_addr, ar_valid,
+                input ar_ready, r_data, r_resp, r_valid,
+                output r_ready,
                 output reset
                 );
 

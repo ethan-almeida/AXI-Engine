@@ -2,10 +2,11 @@
 
 package environment_pkg;
     import uvm_pkg::*;
-    import sequencers_pkg::*;
+    // import sequencers_pkg::*;
     import config_pkg::*;
     import transactions_pkg::*;
     import reference_model_pkg::*;
+    import generator_pkg::*;
 
     // WRITE COMPONENTS
 
@@ -15,23 +16,26 @@ package environment_pkg;
         virtual axi_lite_intf.driver driver;
         uvm_analysis_port #(write_trans) analysis_port;
 
+        mailbox #(write_trans) write_mbox;
+
         function new(string name, uvm_component parent);
             super.new(name,parent);
             $display("driver started");
         endfunction
 
         function void build_phase(uvm_phase phase);
+            virtual axi_lite_intf tmp_vif;
             analysis_port = new("analysis_port", this);
             super.build_phase(phase);
             if (!uvm_config_db #(virtual axi_lite_intf)::get(this, "", "vif", driver))
                 `uvm_fatal("NOVIF", "No vif found in config_db")
+            driver = tmp_vif;
         endfunction
 
         task run_phase(uvm_phase phase);
             forever begin
-
                 write_trans trans;
-                seq_item_port.get_next_item(trans);
+                write_mbox.get(trans);
                 
                 // aw channel
                 @(posedge driver.clk);
@@ -53,9 +57,9 @@ package environment_pkg;
                 while (!driver.b_valid) @(posedge driver.clk);
                 trans.resp = driver.b_resp;
                 driver.b_ready <= 1'b0;
+
                 `uvm_info(get_full_name(), $sformatf("Write Driver: addr=0x%0h data=0x%0h strb=%b resp=%b", trans.addr, trans.data, trans.strb, trans.resp), UVM_LOW);
                 analysis_port.write(trans);
-                seq_item_port.item_done();
             end
         endtask
     endclass
@@ -71,10 +75,12 @@ package environment_pkg;
         endfunction
 
         function void build_phase(uvm_phase phase);
+            virtual axi_lite_intf tmp_vif;
             analysis_port = new("analysis_port", this);
             super.build_phase(phase);
             if (!uvm_config_db #(virtual axi_lite_intf)::get(this, "", "vif", monitor))
                 `uvm_fatal("NOVIF", "no vif found in config_db")
+            monitor = tmp_vif;
         endfunction
 
         task run_phase(uvm_phase phase);
@@ -112,15 +118,18 @@ package environment_pkg;
         endfunction
 
         function void build_phase(uvm_phase phase);
+            virtual axi_lite_intf tmp_vif;
             analysis_port = new("analysis_port", this);
             super.build_phase(phase);
             if (!uvm_config_db #(virtual axi_lite_intf)::get(this, "", "vif", monitor))
                 `uvm_fatal("NOVIF", "no vif found in config_db")
+            monitor = tmp_vif;
         endfunction
 
         task run_phase(uvm_phase phase);
             forever begin
                 read_trans trans = read_trans::type_id::create("trans", this);
+
 
                 @(posedge monitor.clk);
                 while (!(monitor.ar_valid && monitor.ar_ready)) @(posedge monitor.clk);
@@ -145,23 +154,27 @@ package environment_pkg;
         virtual axi_lite_intf.driver driver;
         uvm_analysis_port #(read_trans) analysis_port;
 
+        mailbox #(read_trans) read_mbox;
+
         function new(string name, uvm_component parent);
             super.new(name,parent);
             $display("driver started");
         endfunction
 
         function void build_phase(uvm_phase phase);
+            virtual axi_lite_intf tmp_vif;
             analysis_port = new("analysis_port", this);
             super.build_phase(phase);
             if (!uvm_config_db #(virtual axi_lite_intf)::get(this, "", "vif", driver))
                 `uvm_fatal("NOVIF", "No vif found in config_db")
+            driver = tmp_vif;
         endfunction
 
         task run_phase(uvm_phase phase);
             forever begin
 
                 read_trans trans;
-                seq_item_port.get_next_item(trans);
+                read_mbox.get(trans);
                 
                 // ar channel
                 @(posedge driver.clk);
@@ -236,18 +249,18 @@ package environment_pkg;
                 `uvm_error("Scoreboard", "no expected data for comparing")
                 return;
             end
-            read_trans exp_trans; 
-            exp_trans = exp_queue.pop_front();
+            // read_trans exp_trans; 
+            // exp_trans = exp_queue.pop_front();
 
-            if (t.data == exp_trans.data && t.resp == exp_trans.resp) begin
+            if (t.data == exp_queue[0].data && t.resp == exp_queue[0].resp) begin
                 match_cnt++;
                 `uvm_info("SCB", $sformatf("Read PASS: addr=0x%0h data=0x%0h", t.addr, t.data), UVM_HIGH)
             end
             else begin
                 mismatch_cnt++;
-                `uvm_error("SCB", $sformatf("Read FAIL: addr=0x%0h expected=0x%0h got=0x%0h resp=%b", t.addr, exp_trans.data, t.data, t.resp))
-
+                `uvm_error("SCB", $sformatf("Read FAIL: addr=0x%0h expected=0x%0h got=0x%0h resp=%b", t.addr, exp_queue[0].data, t.data, t.resp))
             end
+            void'(exp_queue.pop_front());
         endfunction
 
         function void report_phase(uvm_phase phase);
@@ -263,8 +276,12 @@ package environment_pkg;
     class environment extends uvm_env;
         `uvm_component_utils(environment)
 
-        write_sequencer w_seqr;
-        read_sequencer r_seqr;
+        // write_sequencer w_seqr;
+        // read_sequencer r_seqr;
+        mailbox #(write_trans) write_mbox;
+        mailbox #(read_trans) read_mbox;
+        write_generator w_gen;
+        read_generator r_gen;
 
         write_driver w_drv;
         read_driver r_drv;
@@ -280,10 +297,12 @@ package environment_pkg;
         endfunction
 
         function void build_phase(uvm_phase phase);
-            w_seqr = write_sequencer::type_id::create("w_seqr", this);
+            // w_seqr = write_sequencer::type_id::create("w_seqr", this);
+            w_gen = write_generator::type_id::create("w_gen", this);
             w_drv  = write_driver::type_id::create("w_drv", this);
             w_mon  = write_monitor::type_id::create("w_mon", this);
-            r_seqr = read_sequencer::type_id::create("r_seqr", this);
+            // r_seqr = read_sequencer::type_id::create("r_seqr", this);
+            r_gen = read_generator::type_id::create("r_gen", this);
             r_drv  = read_driver::type_id::create("r_drv", this);
             r_mon  = read_monitor::type_id::create("r_mon", this);
             scb    = scoreboard::type_id::create("scb", this);
@@ -291,10 +310,14 @@ package environment_pkg;
         endfunction
 
         function void connect_phase(uvm_phase phase);
-            w_drv.seq_item_port.connect(w_seqr.seq_item_export);
-            r_drv.seq_item_port.connect(r_seqr.seq_item_export);
+            // w_drv.seq_item_port.connect(w_seqr.seq_item_export);
+            // r_drv.seq_item_port.connect(r_seqr.seq_item_export);
             w_mon.analysis_port.connect(scb.write_imp);
+            w_mon.analysis_port.connect(ref_model.write_imp);
+
+            r_mon.analysis_port.connect(ref_model.read_imp);
             r_mon.analysis_port.connect(scb.read_imp);
+            ref_model.expected_port.connect(scb.exp_imp);
         endfunction
     endclass
 

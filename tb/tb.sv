@@ -20,7 +20,7 @@ module tbench_top #(parameter int CLK_PERIOD = 5);
 
 
     initial begin
-        uvm_config_db #(virtual axi_lite_intf)::set(null, "*.env", "vif", vif);
+        uvm_config_db #(virtual axi_lite_intf)::set(null, "*", "vif", vif);
         run_test();
     end
 endmodule

@@ -74,6 +74,7 @@ always @ (posedge clk or negedge reset) begin
         b_resp <= 2'b00;
         b_valid <= 1'b0;
         pulse <= 1'b0;
+        w_next_state <= SAVE_ADDR;
     end 
     else begin
         w_current_state <= w_next_state;
@@ -144,6 +145,7 @@ always @ (posedge clk or negedge reset) begin
         r_resp <= 2'b00;
         r_data <= {DATA_WIDTH{1'b0}};
         saved_araddr <= {ADDR_WIDTH{1'b0}};
+        r_next_state <= INITIAL_READ;
     end
 
     else begin

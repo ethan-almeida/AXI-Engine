@@ -15,13 +15,21 @@ UVM_HOME="${UVM_HOME:-$HOME/1800.2-2017-1.0/src}"
 RTL_DIR="rtl"
 TB_DIR="tb"
 
+
+LOG_DIR="log"
+mkdir -p "$LOG_DIR"
+TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+COMPILE_LOG="$LOG_DIR/compile_${TIMESTAMP}.log"
+
 RTL_SRC=$(find "$RTL_DIR" -name "*.sv" -type f 2>/dev/null || true)
 # UVM_SRC=$(find "$TB_DIR" -name "*.sv" -type f 2>/dev/null || true)
 UVM_SRC=(
     "$TB_DIR/config_pkg.sv"
     "$TB_DIR/transactions_pkg.sv"
-    "$TB_DIR/sequencers_pkg.sv"
+    "$TB_DIR/generator_pkg.sv"
+    # "$TB_DIR/sequencers_pkg.sv"
     "$TB_DIR/reference_model_pkg.sv"
+    # "$TB_DIR/sequence_pkg.sv"
     "$TB_DIR/env_pkg.sv"
     "$TB_DIR/interface.sv"
     "$TB_DIR/test.sv"
@@ -54,7 +62,7 @@ done
 
 clean() {
     echo "cleaning project files..."
-    rm -rf "$OBJ_DIR"
+    rm -rf "$OBJ_DIR" "$LOG_DIR"
     rm -f *.vcd *.log
     echo "project has been cleaned"
 }
@@ -72,7 +80,8 @@ zip_project() {
 
 build() {
     echo "Building simulation..."
-    verilator --binary -j 0 \
+
+    if verilator --binary -j 1 \
         -Wall \
         -Wno-EOFNEWLINE \
         -Wno-DECLFILENAME \
@@ -86,28 +95,39 @@ build() {
         +define+UVM_NO_DPI \
         "$UVM_HOME/uvm_pkg.sv" \
         "${UVM_SRC[@]}" \
-        $RTL_SRC 
-        # "$TOP_SRC"
-    echo "Build complete."
+        $RTL_SRC > "$COMPILE_LOG" 2>&1; then
+        echo "Build complete."
+    else
+        echo "Build fail, check logs: $COMPILE_LOG"
+        exit 1
+    fi
+        
 }
 
 run_test() {
     local tname="$1"
+    local test_log="$LOG_DIR/${test_name}_${TIMESTAMP}.log"
     echo "running test: $tname"
-    "$BINARY" +UVM_TESTNAME="$tname"
+    echo "test log: $test_log"
+    "$BINARY" +UVM_TESTNAME="$tname" 2>&1 | tee "$test_log"
 }
+
 
 run_multiple() {
     local count="$1"
-    echo "Running $count iteration(s)..."
+    local multi_log="$LOG_DIR/multi_run_${TIMESTAMP}.log"
+    echo "Running $count iteration(s)..." | tee -a "$multi_log"
+    
     for ((i=1; i<=count; i++)); do
-        echo "--- Run $i of $count (seed $i) ---"
-        if "$BINARY" +UVM_SEED="$i" +UVM_TESTNAME="${test_name:-my_test}" 2>&1 | tee "run_$i.log"; then
-            echo "  Run $i: PASS"
+        echo "--- Run $i of $count (seed $i) ---" | tee -a "$multi_log"
+        if "$BINARY" +UVM_SEED="$i" +UVM_TESTNAME="${test_name:-my_test}" 2>&1 | tee -a "$multi_log"; then
+            echo "  Run $i: PASS" | tee -a "$multi_log"
         else
-            echo "  Run $i: FAIL"
+            echo "  Run $i: FAIL" | tee -a "$multi_log"
+            return 1
         fi
     done
+    echo "All runs complete. Full log: $multi_log"
 }
 
 if $clean_mode; then

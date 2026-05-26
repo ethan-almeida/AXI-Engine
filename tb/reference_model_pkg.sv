@@ -2,7 +2,7 @@
 
 package reference_model_pkg;
     import uvm_pkg::*;
-    import sequencers_pkg::*;
+    // import sequencers_pkg::*;
     import config_pkg::*;
     import transactions_pkg::*;
 

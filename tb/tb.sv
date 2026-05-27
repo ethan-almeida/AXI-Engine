@@ -1,4 +1,5 @@
 import uvm_pkg::*;
+import config_pkg::*;
 `include "uvm_macros.svh"
 
 module tbench_top #(parameter int CLK_PERIOD = 5);
@@ -20,7 +21,21 @@ module tbench_top #(parameter int CLK_PERIOD = 5);
 
 
     initial begin
+        vif.reset = 1'b0;
+        repeat (5) @(posedge clk);
+        vif.reset = 1'b1;
+
+    end
+
+
+    initial begin
         uvm_config_db #(virtual axi_lite_intf)::set(null, "*", "vif", vif);
         run_test();
+    end
+
+    initial begin
+        #20000000;  
+        $display("TIMEOUT - forcing end");
+        $finish;
     end
 endmodule

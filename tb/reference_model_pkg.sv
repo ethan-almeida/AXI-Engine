@@ -8,8 +8,6 @@ package reference_model_pkg;
 
     class reference_model extends uvm_component;
         `uvm_component_utils(reference_model)
-        `uvm_analysis_imp_decl(_w)
-        `uvm_analysis_imp_decl(_r)
 
         uvm_analysis_imp_w #(write_trans, reference_model) write_imp;
         uvm_analysis_imp_r #(read_trans, reference_model) read_imp;

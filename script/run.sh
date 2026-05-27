@@ -12,6 +12,7 @@ OBJ_DIR="obj_dir"
 BINARY="$OBJ_DIR/V$TOP_MODULE"
 
 UVM_HOME="${UVM_HOME:-$HOME/1800.2-2017-1.0/src}"
+# UVM_HOME="${UVM_HOME:-$HOME/verilator-uvm/src}"
 RTL_DIR="rtl"
 TB_DIR="tb"
 
@@ -22,20 +23,17 @@ TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 COMPILE_LOG="$LOG_DIR/compile_${TIMESTAMP}.log"
 
 RTL_SRC=$(find "$RTL_DIR" -name "*.sv" -type f 2>/dev/null || true)
-# UVM_SRC=$(find "$TB_DIR" -name "*.sv" -type f 2>/dev/null || true)
 UVM_SRC=(
     "$TB_DIR/config_pkg.sv"
     "$TB_DIR/transactions_pkg.sv"
-    "$TB_DIR/generator_pkg.sv"
-    # "$TB_DIR/sequencers_pkg.sv"
+    "$TB_DIR/sequencers_pkg.sv"
     "$TB_DIR/reference_model_pkg.sv"
-    # "$TB_DIR/sequence_pkg.sv"
+    "$TB_DIR/sequence_pkg.sv"
     "$TB_DIR/env_pkg.sv"
     "$TB_DIR/interface.sv"
     "$TB_DIR/test.sv"
     "$TB_DIR/tb.sv"
 )
-# TOP_SRC="$TB_DIR/tb.sv"
 
 test_name=""
 run_count=0
@@ -81,7 +79,7 @@ zip_project() {
 build() {
     echo "Building simulation..."
 
-    if verilator --binary -j 1 \
+    if verilator --binary --timing -j 1 \
         -Wall \
         -Wno-EOFNEWLINE \
         -Wno-DECLFILENAME \
@@ -90,9 +88,22 @@ build() {
         -Wno-PROCASSINIT \
         -Wno-UNDRIVEN \
         -Wno-UNUSEDSIGNAL \
+        -Wno-VARHIDDEN \
+        -Wno-CONSTRAINTIGN \
+        -Wno-MISINDENT \
+        -Wno-CASTCONST \
+        -Wno-WIDTHEXPAND \
+        -Wno-UNUSEDPARAM \
+        -Wno-SYMRSVDWORD \
+        -Wno-ZERODLY \
+        -Wno-CASEINCOMPLETE \
+        -Wno-SIDEEFFECT \
+        -Wno-REALCVT \
+        --hierarchical \
         --top-module "$TOP_MODULE" \
         +incdir+"$UVM_HOME" \
         +define+UVM_NO_DPI \
+        +define+UVM_REPORT_DISABLE_FILE_LINE \
         "$UVM_HOME/uvm_pkg.sv" \
         "${UVM_SRC[@]}" \
         $RTL_SRC > "$COMPILE_LOG" 2>&1; then

@@ -164,7 +164,7 @@ always @ (posedge clk or negedge reset) begin
             READ_ADDR: begin
                 if (ar_valid && ar_ready) begin
                     saved_araddr <= ar_addr;
-                    ar_ready <= 1'b1;
+                    ar_ready <= 1'b0;
                     r_next_state <= READ_DATA;
                 end
             end

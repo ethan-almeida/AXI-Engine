@@ -48,11 +48,15 @@ package environment_pkg;
                 while (!driver.w_ready) @(posedge driver.clk);
                 @(posedge driver.clk);
                 driver.w_valid <= 1'b0;
+                
                 // b channel
+                @(posedge driver.clk);
                 driver.b_ready <= 1'b1;
                 while (!driver.b_valid) @(posedge driver.clk);
                 trans.resp = driver.b_resp;
+                @(posedge driver.clk);
                 driver.b_ready <= 1'b0;
+
                 `uvm_info(get_full_name(), $sformatf("Write Driver: addr=0x%0h data=0x%0h strb=%b resp=%b", trans.addr, trans.data, trans.strb, trans.resp), UVM_LOW);
                 analysis_port.write(trans);
                 seq_item_port.item_done();
@@ -166,13 +170,16 @@ package environment_pkg;
                 while (!driver.ar_ready) @(posedge driver.clk);
                 @(posedge driver.clk);   
                 driver.ar_valid <= 1'b0;
+
                 // r channel
                 @(posedge driver.clk);
                 driver.r_ready  <= 1'b1;
                 while (!driver.r_valid) @(posedge driver.clk);
                 trans.data = driver.r_data;
                 trans.resp = driver.r_resp;
+                @(posedge driver.clk);
                 driver.r_ready <= 1'b0;
+
                 `uvm_info(get_full_name(), $sformatf("Read Driver: addr=0x%0h data=0x%0h resp=%b", trans.addr, trans.data, trans.resp), UVM_LOW);
                 analysis_port.write(trans);
                 seq_item_port.item_done();
@@ -189,10 +196,13 @@ package environment_pkg;
         uvm_analysis_imp_expected #(read_trans, scoreboard) exp_imp;
         
         read_trans exp_queue[$];
-        int write_cnt = 0;
-        int read_cnt = 0;
-        int match_cnt = 0;
-        int mismatch_cnt = 0;
+        int write_pass_cnt = 0;
+        int write_fail_cnt = 0;
+        int read_match_cnt = 0;
+        int read_mismatch_cnt = 0;
+        
+        // int match_cnt = 0;
+        // int mismatch_cnt = 0;
 
         function new(string name, uvm_component parent);
             super.new(name, parent);
@@ -209,28 +219,26 @@ package environment_pkg;
         endfunction
 
         function void write_w(write_trans t);
-            write_cnt++;
             if (t.resp == 2'b00) begin
-                match_cnt++;
+                write_pass_cnt++;
                 `uvm_info("Scoreboard", $sformatf("Write PASS: addr=0x%0h", t.addr), UVM_HIGH);
             end else begin
-                mismatch_cnt++;
+                write_fail_cnt++;
                 `uvm_error("Scoreboard", $sformatf("Write FAIL: addr=0x%0h resp=%b", t.addr, t.resp));
             end
         endfunction
 
         function void write_r(read_trans t);
-            read_cnt++;
             if (exp_queue.size() == 0) begin
                 `uvm_error("Scoreboard", "no expected data for comparing")
                 return;
             end
             if (t.data == exp_queue[0].data && t.resp == exp_queue[0].resp) begin
-                match_cnt++;
+                read_match_cnt++;
                 `uvm_info("SCB", $sformatf("Read PASS: addr=0x%0h data=0x%0h", t.addr, t.data), UVM_HIGH)
             end
             else begin
-                mismatch_cnt++;
+                read_mismatch_cnt++;
                 `uvm_error("SCB", $sformatf("Read FAIL: addr=0x%0h expected=0x%0h got=0x%0h resp=%b", t.addr, exp_queue[0].data, t.data, t.resp))
             end
             void'(exp_queue.pop_front());
@@ -238,8 +246,11 @@ package environment_pkg;
 
         function void report_phase(uvm_phase phase);
             string msg;
-            msg = $sformatf("\nScoreboard Report\n  Writes    : %0d\n  Reads     : %0d\n  match_cnt   : %0d\n  Mismatch_cnt: %0d\n==========================",
-                            write_cnt, read_cnt, match_cnt, mismatch_cnt);
+            int total_writes = write_pass_cnt + write_fail_cnt;
+            int total_reads = read_match_cnt + read_mismatch_cnt;
+             msg = $sformatf("\nScoreboard Report\n  Writes : %0d (pass=%0d, fail=%0d)\n  Reads  : %0d (match=%0d, mismatch=%0d)\n==========================",
+                    total_writes, write_pass_cnt, write_fail_cnt,
+                    total_reads, read_match_cnt, read_mismatch_cnt);
             `uvm_info("SCB", msg, UVM_LOW)
         endfunction
     endclass

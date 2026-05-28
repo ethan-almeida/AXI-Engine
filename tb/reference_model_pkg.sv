@@ -26,7 +26,15 @@ package reference_model_pkg;
         endfunction
 
         function void write_w(write_trans t);
-            reference_mem[t.addr[7:0]] = t.data;
+            // reference_mem[t.addr[7:0]] = t.data;
+            if (t.strb[0]) 
+                reference_mem[t.addr[7:0]][0+:8]  = t.data[0+:8];
+            if (t.strb[1]) 
+                reference_mem[t.addr[7:0]][8+:8]  = t.data[8+:8];
+            if (t.strb[2]) 
+                reference_mem[t.addr[7:0]][16+:8] = t.data[16+:8];
+            if (t.strb[3]) 
+                reference_mem[t.addr[7:0]][24+:8] = t.data[24+:8];
         endfunction
 
         function void write_r(read_trans t);

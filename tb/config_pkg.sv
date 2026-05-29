@@ -11,7 +11,7 @@ package config_pkg;
     parameter int ADDR_WIDTH = 32;
     parameter int WRITE_SEQ_TRANS = 1;
     parameter int READ_SEQ_TRANS = 1;
-    parameter int MULTIPLE_WRITE_TRANS = 10;
+    parameter int MULTIPLE_WRITE_TRANS = 500;
     parameter int MULTIPLE_WRITE_BASE_ADDR = 0;
 
 endpackage

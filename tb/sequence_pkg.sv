@@ -66,8 +66,14 @@ package sequence_pkg;
                 wt = write_trans::type_id::create("wt");
                 start_item(wt);
 
-                wt.addr = base_addr + ($urandom_range(0, 15)*4); //can change if needed
-                wt.data = $urandom();
+                wt.addr = base_addr + ($urandom_range(0, 255) & ~3); //can change if needed
+                // wt.data = $urandom();
+                if ($urandom_range(0,49)==0)
+                    wt.data = 32'h0;
+                else if ($urandom_range(0,49)==0)
+                    wt.data = 32'hFFFF_FFFF;
+                else
+                    wt.data = $urandom();
                 wt.strb = $urandom_range(0, 15);
                 wt.resp = 2'b00;
                 `uvm_info(get_type_name(), $sformatf("Write[%0d]: addr=0x%0h data=0x%0h strb=%b", i, wt.addr, wt.data, wt.strb), UVM_MEDIUM)

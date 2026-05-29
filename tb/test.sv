@@ -77,7 +77,7 @@ class test_multiple_writes extends uvm_test;
         w_seq.start(env.w_seqr);
         
         r_seq.addr = new[MULTIPLE_WRITE_TRANS];
-        foreach (r_seq.addr[i]) r_seq.addr[i] = $urandom_range(0, 15) * 4; //can change if needed
+        foreach (r_seq.addr[i]) r_seq.addr[i] = $urandom_range(0, 255) & ~3; //can change if needed
         r_seq.start(env.r_seqr);
         
         repeat(100) @(posedge env.w_mon.monitor.clk);

@@ -61,7 +61,7 @@ done
 clean() {
     echo "cleaning project files..."
     rm -rf "$OBJ_DIR" "$LOG_DIR"
-    rm -f *.vcd *.log
+    rm -f *.vcd *.log *.dat
     echo "project has been cleaned"
 }
 
@@ -79,7 +79,7 @@ zip_project() {
 build() {
     echo "Building simulation..."
 
-    if verilator --binary --timing -j 1 \
+    if verilator --binary --timing --assert --coverage-user -j 1 \
         -Wall \
         -Wno-EOFNEWLINE \
         -Wno-DECLFILENAME \
@@ -132,6 +132,7 @@ run_multiple() {
     for ((i=1; i<=count; i++)); do
         echo "--- Run $i of $count (seed $i) ---" | tee -a "$multi_log"
         if "$BINARY" +UVM_SEED="$i" +UVM_TESTNAME="${test_name:-my_test}" 2>&1 | tee -a "$multi_log"; then
+        # if "$BINARY" +UVM_SEED="$i" +UVM_TESTNAME="${test_name:-my_test}" +verilator+coverage+file="$LOG_DIR/coverage_${i}.dat" 2>&1 | tee -a "$multi_log"; then
             echo "  Run $i: PASS" | tee -a "$multi_log"
         else
             echo "  Run $i: FAIL" | tee -a "$multi_log"
